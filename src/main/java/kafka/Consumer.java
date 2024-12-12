@@ -14,7 +14,6 @@ import co.elastic.clients.json.jackson.JacksonJsonpMapper;
 
 import org.elasticsearch.client.RestClient;
 import org.elasticsearch.client.RestClientBuilder;
-import co.elastic.clients.transport.ElasticsearchTransport;
 
 import java.util.Properties;
 import java.util.Collections;

@@ -11,9 +11,6 @@ import org.json.JSONObject;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 
-import java.net.HttpURLConnection;
-import java.net.URL;
-
 import java.util.Properties;
 import java.util.UUID;
 
