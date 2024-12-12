@@ -1,6 +1,7 @@
 package kafka;
 
 import org.apache.kafka.streams.KafkaStreams;
+import org.apache.kafka.streams.KeyValue;
 import org.apache.kafka.streams.StreamsBuilder;
 import org.apache.kafka.streams.StreamsConfig;
 import org.apache.kafka.streams.kstream.KStream;
@@ -14,6 +15,7 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 
 import java.util.Properties;
+import java.util.UUID;
 
 public class Streamer {
   private static String getContent(String url) {
@@ -63,7 +65,12 @@ public class Streamer {
     StreamsBuilder builder = new StreamsBuilder();
 
     KStream<String, String> rawDataStream = builder.stream(inputTopic);
-    KStream<String, String> filteredDataStream = rawDataStream.mapValues(value -> preprocess(value));
+    KStream<String, String> filteredDataStream = rawDataStream.map((key, value) -> {
+      String cleanValue = preprocess(value);
+      String newKey = UUID.randomUUID().toString();
+  
+      return new KeyValue<>(newKey, cleanValue);
+    });
 
     filteredDataStream.to(outputTopic);
 

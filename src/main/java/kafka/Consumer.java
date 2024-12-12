@@ -6,11 +6,15 @@ import org.apache.kafka.clients.consumer.ConsumerConfig;
 
 import org.apache.http.HttpHost;
 
+import co.elastic.clients.elasticsearch.ElasticsearchClient;
+import co.elastic.clients.elasticsearch.core.IndexRequest;
+import co.elastic.clients.json.JsonData;
+import co.elastic.clients.transport.rest_client.RestClientTransport;
+import co.elastic.clients.json.jackson.JacksonJsonpMapper;
+
 import org.elasticsearch.client.RestClient;
-import org.elasticsearch.client.RestHighLevelClient;
-import org.elasticsearch.client.RequestOptions;
-import org.elasticsearch.action.index.IndexRequest;
-import org.elasticsearch.common.xcontent.XContentType;
+import org.elasticsearch.client.RestClientBuilder;
+import co.elastic.clients.transport.ElasticsearchTransport;
 
 import java.util.Properties;
 import java.util.Collections;
@@ -26,33 +30,43 @@ public class Consumer {
     props.put(ConsumerConfig.GROUP_ID_CONFIG, "consumer");
     props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.StringDeserializer");
     props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.StringDeserializer");
+    
+    RestClientBuilder builder = RestClient.builder(new HttpHost(esHost, esPort));
+    RestClient restClient = builder.build();
+    RestClientTransport transport = new RestClientTransport(restClient, new JacksonJsonpMapper());
+    ElasticsearchClient client = new ElasticsearchClient(transport);
 
     KafkaConsumer<String, String> consumer = new KafkaConsumer<>(props);
     consumer.subscribe(Collections.singletonList(topic));
 
-    try (RestHighLevelClient client = new RestHighLevelClient(RestClient.builder(new HttpHost(esHost, esPort, "http")))){
+    try {
       while (true) {
-      ConsumerRecords<String, String> records = consumer.poll(java.time.Duration.ofMillis(1000));
+        ConsumerRecords<String, String> records = consumer.poll(java.time.Duration.ofMillis(100));
 
-      records.forEach(record -> {
-        String id = record.key();
-        String value = record.value();
-
-        IndexRequest request = new IndexRequest("articles").id(id).source(value, XContentType.JSON);
-
-        try {
-          client.index(request, RequestOptions.DEFAULT);
-          System.out.println("Indexed: " + id);
-        } catch (Exception e) {
-          System.err.println("Failed to index record with id: " + id);
-          e.printStackTrace();
-        }
-      });
+        records.forEach(record -> {
+          System.out.println("Received Data: " + record.value());
+            
+          IndexRequest<Object> indexRequest = new IndexRequest.Builder<Object>()
+            .index("articles")
+            .document(JsonData.fromJson(record.value()))
+            .build();
+            
+          try {
+            client.index(indexRequest);
+          } catch (Exception e) {
+            e.printStackTrace();
+          }
+        });
       }
     } catch (Exception e) {
-      System.err.println("Error occurred in consumer loop");
       e.printStackTrace();
     } finally {
+      try {
+        client.close();
+      } catch (Exception e) {
+        e.printStackTrace();
+      }
+
       consumer.close();
     }
   }
