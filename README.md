@@ -1,1 +1,1 @@
-# FP_DataMining
+# Final Project Data Mining MUIC
